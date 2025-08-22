@@ -1,4 +1,4 @@
-name: build-mac-app
+name: build-mac
 
 on:
   workflow_dispatch:
@@ -13,32 +13,39 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-            python-version: '3.11'
+          python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Install runtime deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt pyinstaller
+          pip install -r requirements.txt
 
-      - name: Clean previous build
+      - name: Install build tooling (latest)
+        run: |
+          pip install --upgrade pyinstaller pyinstaller-hooks-contrib
+
+      - name: Clean
         run: |
           rm -rf build dist BomDiff.spec
 
-      - name: PyInstaller build (collect numpy/pandas/openpyxl)
+      - name: Build (bundle numpy/pandas/openpyxl)
         run: |
           pyinstaller \
+            --clean \
             --windowed --noconsole \
             --name BomDiff \
             --collect-all numpy \
             --collect-all pandas \
             --collect-all openpyxl \
+            --collect-submodules numpy \
+            --collect-submodules pandas \
             bomdiff_application_gui.py
 
       - name: Ad-hoc sign
         run: |
           codesign --force --deep -s - dist/BomDiff.app || true
 
-      - name: Add example env + package DMG
+      - name: Add default.env + DMG
         run: |
           echo "NS_ACCOUNT_REALM=\nNS_REST_DOMAIN=\nNS_CONSUMER_KEY=\nNS_CONSUMER_SECRET=\nNS_TOKEN_ID=\nNS_TOKEN_SECRET=" > dist/default.env
           cd dist

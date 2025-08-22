@@ -49,27 +49,13 @@ def ensure_core_loaded() -> bool:
 
 def run_clicked():
     try:
-        if not ensure_core_loaded():
-            return
-        group_a = parse_id_list(a_text.get("1.0", "end"))
-        group_b = parse_id_list(b_text.get("1.0", "end"))
-        if not group_a or not group_b:
-            messagebox.showwarning("Input Required", "Enter IDs for both groups.")
-            return
-        out_csv = output_var.get().strip() or os.path.join(os.getcwd(), DEFAULT_CSV_NAME)
-        output_var.set(out_csv)
-        status_var.set("Running...")
-        root.update_idletasks()
-        if hasattr(core, "run_diff"):
-            core.run_diff(group_a, group_b, out_csv, "")
-        else:
-            with open(out_csv, "w", encoding="utf-8") as f:
-                f.write("Demo,No run_diff\n")
-        status_var.set(f"Done: {out_csv}")
-        messagebox.showinfo("Complete", f"Finished.\nCSV: {out_csv}")
+        # TODO: put the logic you previously had here
+        perform_diff()
     except Exception as e:
-        status_var.set("Error")
-        messagebox.showerror("Error", str(e))
+        import traceback, io
+        buf = io.StringIO()
+        traceback.print_exc(file=buf)
+        messagebox.showerror("Error", f"Run failed:\n{e}\n\n{buf.getvalue()[:1500]}")
 
 def launch():
     global root, a_text, b_text, output_var, status_var
@@ -164,6 +150,61 @@ CONSUMER_KEY = os.getenv("NS_CONSUMER_KEY") or os.getenv("NETSUITE_CONSUMER_KEY"
 CONSUMER_SECRET = os.getenv("NS_CONSUMER_SECRET") or os.getenv("NETSUITE_CONSUMER_SECRET")
 TOKEN_ID = os.getenv("NS_TOKEN_ID") or os.getenv("NETSUITE_TOKEN_ID")
 TOKEN_SECRET = os.getenv("NS_TOKEN_SECRET") or os.getenv("NETSUITE_TOKEN_SECRET")
+
+def perform_diff():
+    """
+    Parse inputs, call core diff, write CSV, update status.
+    Tries several possible core function names; adjust once you know the real one.
+    """
+    if not ensure_core_loaded():
+        return
+    out_path = output_var.get().strip()
+    if not out_path:
+        messagebox.showerror("Output Required", "Please choose an output CSV file.")
+        return
+
+    try:
+        group_a = parse_id_list(a_text.get("1.0", "end"))
+        group_b = parse_id_list(b_text.get("1.0", "end"))
+    except ValueError as ve:
+        messagebox.showerror("Invalid IDs", str(ve))
+        return
+
+    if not group_a:
+        messagebox.showerror("Input Required", "Group A list is empty.")
+        return
+    if not group_b:
+        messagebox.showerror("Input Required", "Group B list is empty.")
+        return
+
+    status_var.set("Running...")
+    root.update_idletasks()
+
+    try:
+        # Try to locate a core diff function (adjust to the real one in so_bomdiff_application.py)
+        fn = None
+        for name in ("run_diff", "bomdiff", "perform_diff", "diff_boms", "main"):
+            if hasattr(core, name):
+                cand = getattr(core, name)
+                if callable(cand):
+                    fn = cand
+                    break
+        if fn is None:
+            raise RuntimeError("No diff function found in core module (expected one of run_diff/bomdiff/perform_diff/diff_boms/main).")
+
+        # Call the core function.
+        # Adapt signature if needed; this assumes (group_a_ids, group_b_ids, output_path)
+        result = fn(group_a, group_b, out_path)
+
+        status_var.set(f"Done: {out_path}")
+        messagebox.showinfo("Success", f"Diff written to:\n{out_path}")
+    except Exception as e:
+        import traceback, io
+        buf = io.StringIO()
+        traceback.print_exc(file=buf)
+        status_var.set("Error")
+        messagebox.showerror("Error",
+            f"Diff failed:\n{e}\n\nTraceback (truncated):\n{buf.getvalue()[:1500]}")
 
 if __name__ == "__main__":
     launch()
