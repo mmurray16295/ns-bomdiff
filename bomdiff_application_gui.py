@@ -1,11 +1,12 @@
-import os
-import sys
+import os, sys, platform
+from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from pathlib import Path
 
 core = None  # deferred import
 DEFAULT_CSV_NAME = "bomdiff_A_minus_B.csv"
+
+APP_VERSION = "v0.1.0"
 
 def parse_id_list(text: str) -> list[int]:
     ids: list[int] = []
@@ -109,22 +110,27 @@ def launch():
 
 def load_env():
     """
-    Load .env from (first found):
-      1. <App>.app/Contents/MacOS/.env          (inside bundle)
-      2. Folder containing <App>.app/.env       (next to the app)
-      3. Current working directory ./.env
+    Load first config file found (priority order):
+      1. .env inside bundle
+      2. default.env inside bundle
+      3. .env alongside the .app
+      4. default.env alongside the .app
+      5. .env in current working directory
+      6. default.env in current working directory
     """
     exe = Path(sys.executable).resolve()
+    names = [".env", "default.env"]
     candidates = []
-
     if ".app/Contents/MacOS" in str(exe):
-        macos_dir = exe.parent                    # .../Contents/MacOS
-        app_dir = macos_dir.parent.parent         # .../BomDiff.app
-        outer_dir = app_dir.parent                # parent folder
-        candidates.append(macos_dir / ".env")
-        candidates.append(outer_dir / ".env")
-
-    candidates.append(Path(".") / ".env")
+        macos_dir = exe.parent                  # .../Contents/MacOS
+        app_dir = macos_dir.parent.parent       # .../BomDiff.app
+        outer_dir = app_dir.parent
+        for n in names:
+            candidates.append(macos_dir / n)
+        for n in names:
+            candidates.append(outer_dir / n)
+    for n in names:
+        candidates.append(Path(".") / n)
 
     for p in candidates:
         if p.exists():
@@ -141,7 +147,17 @@ def load_env():
 
 load_env()
 
-# Retrieve variables (fallback names if you had old ones)
+print(f"[startup] BomDiff {APP_VERSION} python={platform.python_version()} "
+      f"arch={platform.machine()} sys.executable={sys.executable}")
+
+# Quick numpy availability check (helps confirm PyInstaller collected binaries)
+try:
+    import numpy as _np  # noqa
+    print(f"[check] numpy OK version={_np.__version__}")
+except Exception as e:
+    print(f"[check] numpy import failed: {e}")
+
+# Retrieve env vars (keep fallback names if you had older naming)
 ACCOUNT_ID = os.getenv("NS_ACCOUNT_REALM") or os.getenv("NETSUITE_ACCOUNT_ID")
 REST_DOMAIN = os.getenv("NS_REST_DOMAIN")
 CONSUMER_KEY = os.getenv("NS_CONSUMER_KEY") or os.getenv("NETSUITE_CONSUMER_KEY")

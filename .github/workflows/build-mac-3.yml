@@ -1,0 +1,54 @@
+name: build-mac-app
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-macos-arm64:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+            python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Clean previous build
+        run: |
+          rm -rf build dist BomDiff.spec
+
+      - name: PyInstaller build (collect numpy/pandas/openpyxl)
+        run: |
+          pyinstaller \
+            --windowed --noconsole \
+            --name BomDiff \
+            --collect-all numpy \
+            --collect-all pandas \
+            --collect-all openpyxl \
+            bomdiff_application_gui.py
+
+      - name: Ad-hoc sign
+        run: |
+          codesign --force --deep -s - dist/BomDiff.app || true
+
+      - name: Add example env + package DMG
+        run: |
+          echo "NS_ACCOUNT_REALM=\nNS_REST_DOMAIN=\nNS_CONSUMER_KEY=\nNS_CONSUMER_SECRET=\nNS_TOKEN_ID=\nNS_TOKEN_SECRET=" > dist/default.env
+          cd dist
+          mkdir dmgroot
+          cp -R BomDiff.app dmgroot/
+          cp default.env dmgroot/
+          hdiutil create -volname "BomDiff" -srcfolder dmgroot -ov -format UDZO BomDiff-macOS-arm64.dmg
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: BomDiff-macOS-arm64-dmg
+          path: dist/BomDiff-macOS-arm64.dmg
