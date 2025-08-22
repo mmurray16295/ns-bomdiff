@@ -1,0 +1,31 @@
+name: build-mac
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-macos-arm64:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+      - name: Build
+        run: |
+          pyinstaller --onefile --noconsole --name bomdiff_gui bomdiff_application_gui.py
+          ls -l dist
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bomdiff-macos-arm64
+          path: dist/bomdiff_gui
+          if-no-files-found: error
