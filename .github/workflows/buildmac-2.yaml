@@ -1,0 +1,49 @@
+name: build-mac
+
+on:
+  workflow_dispatch:
+  push:
+    tags: [ 'v*' ]
+
+jobs:
+  build-macos-arm64:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+      - name: Build .app bundle
+        run: |
+          # Create app bundle (windowed so no terminal pops up)
+          pyinstaller --windowed --noconsole --name BomDiff bomdiff_application_gui.py
+          # Result: dist/BomDiff.app
+          # (Optional) add custom icon.icns => include --icon path/to/icon.icns above
+      - name: Ad-hoc sign
+        run: |
+          codesign --force --deep -s - dist/BomDiff.app
+          codesign -dv dist/BomDiff.app || true
+      - name: Create ZIP and DMG
+        run: |
+          cd dist
+          # Zip (preserves bundle structure)
+          ditto -c -k --sequesterRsrc --keepParent BomDiff.app BomDiff-macOS-arm64.zip
+          # DMG
+          hdiutil create -volname "BomDiff" -srcfolder BomDiff.app -ov -format UDZO BomDiff-macOS-arm64.dmg
+          ls -lh
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BomDiff-macOS-arm64-zip
+          path: dist/BomDiff-macOS-arm64.zip
+          if-no-files-found: error
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BomDiff-macOS-arm64-dmg
+          path: dist/BomDiff-macOS-arm64.dmg
+          if-no-files-found: error
