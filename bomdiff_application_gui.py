@@ -1,6 +1,8 @@
 import os
+import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox
+from pathlib import Path
 
 core = None  # deferred import
 DEFAULT_CSV_NAME = "bomdiff_A_minus_B.csv"
@@ -104,6 +106,48 @@ def launch():
 
     root.resizable(False, False)
     root.mainloop()
+
+def load_env():
+    """
+    Load .env from (first found):
+      1. <App>.app/Contents/MacOS/.env          (inside bundle)
+      2. Folder containing <App>.app/.env       (next to the app)
+      3. Current working directory ./.env
+    """
+    exe = Path(sys.executable).resolve()
+    candidates = []
+
+    if ".app/Contents/MacOS" in str(exe):
+        macos_dir = exe.parent                    # .../Contents/MacOS
+        app_dir = macos_dir.parent.parent         # .../BomDiff.app
+        outer_dir = app_dir.parent                # parent folder
+        candidates.append(macos_dir / ".env")
+        candidates.append(outer_dir / ".env")
+
+    candidates.append(Path(".") / ".env")
+
+    for p in candidates:
+        if p.exists():
+            try:
+                for line in p.read_text(encoding="utf-8").splitlines():
+                    if not line or line.lstrip().startswith("#") or "=" not in line:
+                        continue
+                    k, v = line.split("=", 1)
+                    os.environ.setdefault(k.strip(), v.strip())
+                print(f"[env] Loaded {p}")
+                break
+            except Exception as e:
+                print(f"[env] Failed loading {p}: {e}")
+
+load_env()
+
+# Retrieve variables (fallback names if you had old ones)
+ACCOUNT_ID = os.getenv("NS_ACCOUNT_REALM") or os.getenv("NETSUITE_ACCOUNT_ID")
+REST_DOMAIN = os.getenv("NS_REST_DOMAIN")
+CONSUMER_KEY = os.getenv("NS_CONSUMER_KEY") or os.getenv("NETSUITE_CONSUMER_KEY")
+CONSUMER_SECRET = os.getenv("NS_CONSUMER_SECRET") or os.getenv("NETSUITE_CONSUMER_SECRET")
+TOKEN_ID = os.getenv("NS_TOKEN_ID") or os.getenv("NETSUITE_TOKEN_ID")
+TOKEN_SECRET = os.getenv("NS_TOKEN_SECRET") or os.getenv("NETSUITE_TOKEN_SECRET")
 
 if __name__ == "__main__":
     launch()
