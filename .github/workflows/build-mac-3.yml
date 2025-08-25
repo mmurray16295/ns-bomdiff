@@ -28,18 +28,9 @@ jobs:
         run: |
           rm -rf build dist BomDiff.spec
 
-      - name: Build (bundle numpy/pandas/openpyxl)
+      - name: Build (spec file forces numpy/pandas/openpyxl)
         run: |
-          pyinstaller \
-            --clean \
-            --windowed --noconsole \
-            --name BomDiff \
-            --collect-all numpy \
-            --collect-all pandas \
-            --collect-all openpyxl \
-            --collect-submodules numpy \
-            --collect-submodules pandas \
-            bomdiff_application_gui.py
+          pyinstaller --clean BomDiff.spec
 
       - name: Ad-hoc sign
         run: |

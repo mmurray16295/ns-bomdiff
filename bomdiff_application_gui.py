@@ -143,6 +143,16 @@ try:
 except Exception as e:
     print(f"[check] numpy import failed: {e}")
 
+def _diag_numpy():
+    try:
+        import numpy as _np, importlib.util, pathlib
+        import numpy.core._multiarray_umath as _m
+        p = pathlib.Path(_m.__file__)
+        print(f"[check] numpy OK version={_np.__version__} core={p.name}")
+    except Exception as e:
+        print(f"[check] numpy import FAILED: {e}")
+_diag_numpy()
+
 # Retrieve env vars (keep fallback names if you had older naming)
 ACCOUNT_ID = os.getenv("NS_ACCOUNT_REALM") or os.getenv("NETSUITE_ACCOUNT_ID")
 REST_DOMAIN = os.getenv("NS_REST_DOMAIN")
