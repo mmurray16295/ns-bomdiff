@@ -28,28 +28,31 @@ jobs:
         run: |
           rm -rf build dist   # DO NOT delete BomDiff.spec
 
-      - name: Verify spec presence
+      - name: Verify spec & hook
         run: |
-          echo "PWD:"; pwd
-          echo "Listing:"
-          ls -al
-          echo "Spec files found:"
-          find . -maxdepth 3 -name '*.[sS]pec' -print
-          echo "Git tracked spec files:"
-          git ls-files | grep -i spec || true
-          echo "First 20 lines of BomDiff.spec:"
-          sed -n '1,20p' BomDiff.spec || echo "BomDiff.spec missing"
-          test -f BomDiff.spec
-      - name: Build (spec file forces numpy/pandas/openpyxl)
+          echo "=== requirements.txt ==="; cat requirements.txt
+          echo "=== numpy installed path ==="
+          python - <<'PY'
+import numpy, sys
+print("numpy.__file__ =", numpy.__file__)
+PY
+          echo "=== BomDiff.spec (first 140 lines) ==="
+          sed -n '1,140p' BomDiff.spec
+          echo "=== runtime_fix_numpy.py ==="
+          sed -n '1,140p' runtime_fix_numpy.py || echo "missing"
+      - name: Build (DEBUG)
         run: |
-          pyinstaller --clean ./BomDiff.spec
-
+          pyinstaller --log-level=DEBUG --clean BomDiff.spec
       - name: Debug numpy artifacts
         run: |
-          echo "Listing a few numpy core libs inside app:"
-          find dist/BomDiff.app -name "_multiarray_umath*.so" -maxdepth 8 || echo "NO core so"
-          find dist/BomDiff.app -path "*/numpy/setup.py" -maxdepth 8 -print || echo "No numpy setup.py"
-
+          echo "--- core extension(s) ---"
+          find dist/BomDiff.app -name "_multiarray_umath*.so" || echo "NO core so"
+          echo "--- any numpy/setup.py ---"
+          find dist/BomDiff.app -path "*/numpy/setup.py" -print || echo "None"
+          echo "--- any numpy/pyproject.toml ---"
+          find dist/BomDiff.app -path "*/numpy/pyproject.toml" -print || echo "None"
+          echo "--- list numpy/core (first 30) ---"
+          find dist/BomDiff.app -path "*/numpy/core" -type d -exec ls -1 {} \; | head -n 30 || true
       - name: Ad-hoc sign
         run: |
           codesign --force --deep -s - dist/BomDiff.app || true

@@ -1,33 +1,27 @@
 # Full spec: force numpy/pandas/openpyxl; exclude numpy source markers.
 from PyInstaller.utils.hooks import (
+    collect_all,
     collect_submodules,
     collect_data_files,
     collect_dynamic_libs,
 )
-import os
 
 block_cipher = None
 
-hiddenimports = (
-    collect_submodules('numpy')
-    + collect_submodules('pandas')
-    + collect_submodules('openpyxl')
-)
+# Full numpy (all datas/binaries/hiddenimports)
+n_datas, n_binaries, n_hidden = collect_all('numpy')
 
-# Data files for pandas/openpyxl only; skip setup/pyproject.
-datas = []
-for src, dest in collect_data_files('pandas') + collect_data_files('openpyxl'):
-    base = os.path.basename(src)
-    if base in ('setup.py', 'pyproject.toml'):
-        continue
-    datas.append((src, dest))
+# pandas + openpyxl
+p_hidden = collect_submodules('pandas')
+o_hidden = collect_submodules('openpyxl')
+p_datas = collect_data_files('pandas')
+o_datas = collect_data_files('openpyxl')
+p_bins = collect_dynamic_libs('pandas')
+o_bins = collect_dynamic_libs('openpyxl')
 
-# Dynamic libs (include numpy libs explicitly)
-binaries = (
-    collect_dynamic_libs('numpy')
-    + collect_dynamic_libs('pandas')
-    + collect_dynamic_libs('openpyxl')
-)
+hiddenimports = list(set(n_hidden + p_hidden + o_hidden))
+datas = n_datas + p_datas + o_datas
+binaries = n_binaries + p_bins + o_bins
 
 a = Analysis(
     ['bomdiff_application_gui.py'],
@@ -47,7 +41,7 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name='BomDiff',
-    console=True,   # keep True for diagnostics; switch to False after success
+    console=True,  # turn False after numpy works
 )
 coll = COLLECT(
     exe,
