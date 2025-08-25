@@ -28,9 +28,21 @@ jobs:
         run: |
           rm -rf build dist BomDiff.spec
 
+      - name: Verify spec presence
+        run: |
+          echo "PWD:"; pwd
+          echo "Listing:"
+          ls -al
+          echo "Spec files found:"
+          find . -maxdepth 3 -name '*.[sS]pec' -print
+          echo "Git tracked spec files:"
+          git ls-files | grep -i spec || true
+          echo "First 20 lines of BomDiff.spec:"
+          sed -n '1,20p' BomDiff.spec || echo "BomDiff.spec missing"
+          test -f BomDiff.spec
       - name: Build (spec file forces numpy/pandas/openpyxl)
         run: |
-          pyinstaller --clean BomDiff.spec
+          pyinstaller --clean ./BomDiff.spec
 
       - name: Ad-hoc sign
         run: |
