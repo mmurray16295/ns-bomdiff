@@ -43,7 +43,7 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name='BomDiff',
-    console=False,  # set True for debugging
+    console=False,
 )
 coll = COLLECT(
     exe,
