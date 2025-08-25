@@ -1,24 +1,28 @@
-# Force inclusion of numpy / pandas / openpyxl binaries & data
+# Bundle BomDiff with pandas & openpyxl; let PyInstaller's numpy hook work.
 from PyInstaller.utils.hooks import (
     collect_submodules,
     collect_data_files,
     collect_dynamic_libs,
 )
+import os
 
 block_cipher = None
 
+# Let built-in numpy hook handle numpy (do NOT collect its raw source tree).
 hiddenimports = (
-    collect_submodules('numpy')
-    + collect_submodules('pandas')
+    collect_submodules('pandas')
     + collect_submodules('openpyxl')
 )
 
-datas = (
-    collect_data_files('numpy')
-    + collect_data_files('pandas')
-    + collect_data_files('openpyxl')
-)
+# Data files (exclude any accidental setup/pyproject if present)
+datas = []
+for src, dest in collect_data_files('pandas') + collect_data_files('openpyxl'):
+    base = os.path.basename(src)
+    if base in ('setup.py', 'pyproject.toml'):
+        continue
+    datas.append((src, dest))
 
+# Dynamic libs we explicitly include (numpy & deps, plus pandas/openpyxl if any)
 binaries = (
     collect_dynamic_libs('numpy')
     + collect_dynamic_libs('pandas')
