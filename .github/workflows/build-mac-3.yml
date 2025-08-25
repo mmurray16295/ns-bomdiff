@@ -32,10 +32,7 @@ jobs:
         run: |
           echo "=== requirements.txt ==="; cat requirements.txt
           echo "=== numpy installed path ==="
-          python - <<'PY'
-import numpy, sys
-print("numpy.__file__ =", numpy.__file__)
-PY
+          python -c "import numpy, sys; print('numpy.__file__ =', numpy.__file__)"
           echo "=== BomDiff.spec (first 140 lines) ==="
           sed -n '1,140p' BomDiff.spec
           echo "=== runtime_fix_numpy.py ==="
