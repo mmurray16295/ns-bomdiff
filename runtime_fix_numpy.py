@@ -1,43 +1,41 @@
-# Runtime numpy diagnostics & relocation of misplaced core .so files.
+# Fix numpy packaging: copy compiled libs from Frameworks/numpy/_core -> Resources/numpy/_core
 import os, sys, pathlib, shutil
 
 removed = []
 for p in sys.path:
-    for fname in ("setup.py","pyproject.toml"):
-        cand = os.path.join(p,"numpy",fname)
+    for fname in ("setup.py", "pyproject.toml"):
+        cand = os.path.join(p, "numpy", fname)
         if os.path.exists(cand):
             try:
                 os.remove(cand); removed.append(cand)
             except Exception as e:
                 print(f"[runtime_fix] cannot remove {cand}: {e}")
 
-# If _core dir exists but core dir has no compiled libs, move them.
-for p in sys.path:
-    root = pathlib.Path(p) / "numpy"
-    d_core = root / "core"
-    d__core = root / "_core"
-    if d__core.is_dir():
-        so_files = list(d__core.glob("_multiarray_umath*.so")) + list(d__core.glob("*umath*.so"))
-        if so_files:
-            d_core.mkdir(exist_ok=True)
-            # Only move if not already present
-            for so in so_files:
-                target = d_core / so.name
-                if not target.exists():
-                    try:
-                        shutil.copy2(so, target)
-                        print(f"[runtime_fix] copied {so.name} -> core")
-                    except Exception as e:
-                        print(f"[runtime_fix] copy failed {so} -> core: {e}")
+exe = pathlib.Path(sys.executable).resolve()
+contents = exe.parents[1]  # .../BomDiff.app/Contents
+fw_core = contents / "Frameworks" / "numpy" / "_core"
+res_numpy = contents / "Resources" / "numpy"
+res_core = res_numpy / "_core"
+res_core.mkdir(parents=True, exist_ok=True)
 
-print(f"[runtime_fix] removed={removed or 'none'}")
+moved = []
+if fw_core.is_dir():
+    for so in fw_core.glob("*.so"):
+        target = res_core / so.name
+        if not target.exists():
+            try:
+                shutil.copy2(so, target)
+                moved.append(so.name)
+            except Exception as e:
+                print(f"[runtime_fix] copy failed {so} -> {target}: {e}")
+
+print(f"[runtime_fix] removed={removed or 'none'} moved={moved or 'none'}")
 
 try:
     import numpy
-    loc = pathlib.Path(numpy.__file__).parent
-    core_dir = loc / "core"
-    sos = list(core_dir.glob("*multiarray*umath*.so")) or list(core_dir.glob("_multiarray_umath*.so"))
+    # Verify presence of compiled extension in the expected underscore dir
+    so_files = list((res_core).glob("_multiarray_umath*.so"))
     print(f"[runtime_fix] numpy.__file__={numpy.__file__}")
-    print(f"[runtime_fix] core so present={bool(sos)} count={len(sos)} names={[s.name for s in sos]}")
+    print(f"[runtime_fix] _core so present={bool(so_files)} count={len(so_files)} names={[s.name for s in so_files]}")
 except Exception as e:
     print(f"[runtime_fix] numpy probe failed: {e}")
