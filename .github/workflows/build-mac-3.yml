@@ -26,7 +26,7 @@ jobs:
 
       - name: Clean
         run: |
-          rm -rf build dist BomDiff.spec
+          rm -rf build dist   # DO NOT delete BomDiff.spec
 
       - name: Verify spec presence
         run: |
